@@ -4,7 +4,6 @@ import bcrypt from "bcrypt";
 
 //we dont write id in schema becuz mongodb generates a unique id of user itself (in BSON data)
 
-
 const userSchema = new Schema(
   {
     username: {
@@ -53,12 +52,12 @@ const userSchema = new Schema(
 
 //arrow fxn is not used becuz .this does not work with arrow fxns
 //pre hook runs just before your data gets saved (used for passwrd encryption) becuz direct encryption is not possible
-userSchema.pre("save", async function (next) {
+userSchema.pre("save", async function() {
   //save is an event , similarly there are many other events like : remove , updateOne , deleteOne , validate and init
 
   //the problem is everytime someone saves anything like avatar and click save button ,password will be encrypted everytime due to prehook and we want encryption only happens when password field modifies 
   if (!this.isModified("password")) {
-    return ;
+    return;
   }
   //if modified then do encryption
   this.password = await bcrypt.hash(this.password, 10);//10 salting rounds
@@ -68,7 +67,7 @@ userSchema.pre("save", async function (next) {
 //method :mongoose gives us methods ,custom functions that you define on a schema and that become available on individual documents (instances of that model).
 
 //we have made a property of isPasswordCorrect
-userSchema.methods.isPasswordCorrect = async function (password) {
+userSchema.methods.isPasswordCorrect = async function(password) {
   //bcrypt also has method to check the password
 
   //this returns true or false
@@ -76,15 +75,15 @@ userSchema.methods.isPasswordCorrect = async function (password) {
 };
 
 //this is fast so no need of async
-userSchema.methods.generateAccessToken = function () {
+userSchema.methods.generateAccessToken = function() {
   return jwt.sign(//payload
     {
-    //payload key : taken from database
-    _id: this._id,
-    email: this.email,
-    username: this.username,
-    fullName: this.fullName,
-  },//secret
+      //payload key : taken from database
+      _id: this._id,
+      email: this.email,
+      username: this.username,
+      fullName: this.fullName,
+    },//secret
     process.env.ACCESS_TOKEN_SECRET,
     {//expiry
       expiresIn: process.env.ACCESS_TOKEN_EXPIRY
@@ -92,18 +91,18 @@ userSchema.methods.generateAccessToken = function () {
   );
 };
 
-userSchema.methods.generateRefreshToken = function () {
-   return jwt.sign(
-     {
-       //it refresh regularly so it contains less data
-       _id: this._id,
-     
-     },
-     process.env.REFRESH_TOKEN_SECRET,
-     {
-       expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
-     }
-   );
+userSchema.methods.generateRefreshToken = function() {
+  return jwt.sign(
+    {
+      //it refresh regularly so it contains less data
+      _id: this._id,
+
+    },
+    process.env.REFRESH_TOKEN_SECRET,
+    {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
+    }
+  );
 };
 
 export const User = mongoose.model("User", userSchema);
