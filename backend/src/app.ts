@@ -9,7 +9,7 @@ const app = express();
 app.use(
   cors({
     origin: process.env.CORS_ORIGIN,//the origins we are allowing
-    Credentials: true,
+    credentials: true,
   })
 );
 

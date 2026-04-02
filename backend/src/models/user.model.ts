@@ -1,10 +1,26 @@
 import mongoose, { Schema } from "mongoose";
-import { jwt } from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
+import { config } from "../config/config.js";
+import { Document } from "mongoose";
 
-//we dont write id in schema becuz mongodb generates a unique id of user itself (in BSON data)
+export interface IUser extends Document {
+  _id: mongoose.Types.ObjectId;
+  email: string;
+  username: string;
+  fullName: string;
+  password: string;
+  avatar: string;
+  coverImage?: string;
+  watchHistory: mongoose.Types.ObjectId[];
+  refreshToken?: string;
 
-const userSchema = new Schema(
+  isPasswordCorrect(password: string): Promise<boolean>;
+  generateAccessToken(): string;
+  generateRefreshToken(): string;
+}
+
+const userSchema = new Schema<IUser>(
   {
     username: {
       type: String,
@@ -12,7 +28,7 @@ const userSchema = new Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      index: true, //makes it searchable in optimised way
+      index: true,
     },
     email: {
       type: String,
@@ -27,19 +43,21 @@ const userSchema = new Schema(
       trim: true,
     },
     avatar: {
-      type: String, //cloudinary url
+      type: String,
       required: true,
     },
     coverImage: {
       type: String,
     },
-    watchHistory: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Video",
-    },
+    watchHistory: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Video",
+      },
+    ],
     password: {
       type: String,
-      required: [true, "password is required"], //custom msg
+      required: [true, "password is required"],
     },
     refreshToken: {
       type: String,
@@ -48,65 +66,41 @@ const userSchema = new Schema(
   { timestamps: true }
 );
 
-//middleware : given by mongoose (refer documentation)
-
-//arrow fxn is not used becuz .this does not work with arrow fxns
-//pre hook runs just before your data gets saved (used for passwrd encryption) becuz direct encryption is not possible
 userSchema.pre("save", async function() {
-  //save is an event , similarly there are many other events like : remove , updateOne , deleteOne , validate and init
-
-  //the problem is everytime someone saves anything like avatar and click save button ,password will be encrypted everytime due to prehook and we want encryption only happens when password field modifies 
   if (!this.isModified("password")) {
     return;
   }
-  //if modified then do encryption
-  this.password = await bcrypt.hash(this.password, 10);//10 salting rounds
-  ;
+  this.password = await bcrypt.hash(this.password, 10);
+
 });
 
-//method :mongoose gives us methods ,custom functions that you define on a schema and that become available on individual documents (instances of that model).
-
-//we have made a property of isPasswordCorrect
-userSchema.methods.isPasswordCorrect = async function(password) {
-  //bcrypt also has method to check the password
-
-  //this returns true or false
+userSchema.methods.isPasswordCorrect = async function(password: string) {
   return await bcrypt.compare(password, this.password);
 };
 
-//this is fast so no need of async
-userSchema.methods.generateAccessToken = function() {
-  return jwt.sign(//payload
+userSchema.methods.generateAccessToken = function(this: IUser) {
+
+  return jwt.sign(
     {
-      //payload key : taken from database
-      _id: this._id,
+      _id: this._id.toString(),
       email: this.email,
       username: this.username,
       fullName: this.fullName,
-    },//secret
-    process.env.ACCESS_TOKEN_SECRET,
-    {//expiry
-      expiresIn: process.env.ACCESS_TOKEN_EXPIRY
-    }
+    },
+    config.at_jwt as string,
+    { expiresIn: config.ex_at_jwt as any }
   );
 };
 
-userSchema.methods.generateRefreshToken = function() {
+userSchema.methods.generateRefreshToken = function(this: IUser) {
   return jwt.sign(
     {
-      //it refresh regularly so it contains less data
-      _id: this._id,
-
+      _id: this._id.toString(),
     },
-    process.env.REFRESH_TOKEN_SECRET,
-    {
-      expiresIn: process.env.REFRESH_TOKEN_EXPIRY,
-    }
+    config.rt_jwt as string,
+    { expiresIn: config.ex_rt_jwt as any }
   );
 };
 
-export const User = mongoose.model("User", userSchema);
-//this User can directly contact with db becuz its made using mongoose
 
-
-
+export const User = mongoose.model<IUser>("User", userSchema);
