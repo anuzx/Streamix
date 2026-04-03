@@ -13,3 +13,12 @@ export const LoginSchema = z.object({
   email: z.email(),
   password: z.string()
 })
+
+export const TweetSchema = z.object({
+  content: z.string()
+})
+
+export const PlaylistSchema = z.object({
+  name: z.string(),
+  description: z.string()
+})

@@ -411,7 +411,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
         localField: "watchHistory",
         foreignField: "_id",
         as: "watchHistory",
-        pipeline: [
+        pipeline: [ // runs on each matched video
           {
             $lookup: {
               from: "users",
@@ -420,7 +420,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
               as: "owner",
               pipeline: [
                 {
-                  $project: {
+                  $project: {// only bring back 3 fields from the owner
                     fullName: 1,
                     username: 1,
                     avatar: 1,
