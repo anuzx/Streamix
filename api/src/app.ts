@@ -28,7 +28,7 @@ app.use(cookieParser()); //to access cookies in user browser from server and per
 //ROUTES:
 
 import userRouter from "./routes/user.routes.js"; //this import statement has own name this works only when export is default
-import tweetRouter from "./routes/tweet.routes.js";
+import postRouter from "./routes/posts.routes.js";
 import subscriptionRouter from "./routes/subscription.routes.js";
 import videoRouter from "./routes/video.routes.js";
 import commentRouter from "./routes/comment.routes.js";
@@ -42,7 +42,7 @@ import dashboardRouter from "./routes/dashboard.routes.js";
 
 app.use("/api/v1/users", userRouter); //control is passed to userRouter
 //url will look something like : https://localhost:8000/api/v1/users/route
-app.use("/api/v1/tweets", tweetRouter);
+app.use("/api/v1/posts", postRouter);
 app.use("/api/v1/subscriptions", subscriptionRouter);
 app.use("/api/v1/videos", videoRouter);
 app.use("/api/v1/comments", commentRouter);

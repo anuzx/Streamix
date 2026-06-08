@@ -6,7 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { TweetSchema } from "../validator/schema.js";
 
-const createTweet = asyncHandler(async (req, res) => {
+const createPost = asyncHandler(async (req, res) => {
   // create tweet
   const parsedData = TweetSchema.safeParse(req.body)
 
@@ -24,7 +24,7 @@ const createTweet = asyncHandler(async (req, res) => {
   return res.status(201).json(new ApiResponse(201, tweet, "tweet created"))
 });
 
-const getUserTweets = asyncHandler(async (req, res) => {
+const getUserPosts = asyncHandler(async (req, res) => {
   // get user tweets
 
   const tweet = await Tweet.find({ owner: req.user }).populate("owner", "username avatar")
@@ -33,7 +33,7 @@ const getUserTweets = asyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, tweet, "tweets fetched"))
 });
 
-const updateTweet = asyncHandler(async (req, res) => {
+const updatePost = asyncHandler(async (req, res) => {
   //update tweet
   const parsedData = TweetSchema.safeParse(req.body)
   if (!parsedData.success) {
@@ -52,7 +52,7 @@ const updateTweet = asyncHandler(async (req, res) => {
   );
 });
 
-const deleteTweet = asyncHandler(async (req, res) => {
+const deletePost = asyncHandler(async (req, res) => {
   // delete tweet 
   const { tweetId } = req.params;
 
@@ -78,4 +78,4 @@ const deleteTweet = asyncHandler(async (req, res) => {
   );
 });
 
-export { createTweet, getUserTweets, updateTweet, deleteTweet };
+export { createPost, getUserPosts, deletePost, updatePost };

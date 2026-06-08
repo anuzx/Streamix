@@ -65,6 +65,10 @@ const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Avatar file is required");
   }
 
+  if (!coverImageLocalPath) {
+    throw new ApiError(400, "cover image file is required");
+  }
+
   const avatar = await uploadOnCloudinary(avatarLocalPath);
   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
 
@@ -332,7 +336,7 @@ const getUserChannelProfile = asyncHandler(async (req: Request, res: Response) =
 
   const { username } = req.params;
 
-  if (!username?.trim()) {
+  if (!username.trim()) {
     throw new ApiError(400, "username is missing");
   }
 

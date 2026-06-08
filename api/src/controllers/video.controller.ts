@@ -5,6 +5,39 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { v2 as cloudinary } from "cloudinary";
+import { VideoSchema } from "../validator/schema.js";
+
+
+/**
+ * GET SIGNED UPLOAD URL 
+ */
+const getSignedUploadUrl = asyncHandler(async (_req, res) => {
+  const timestamp = Math.round(Date.now() / 1000);
+  const folder = "videos"
+
+  const paramsToSign = {
+    timestamp,
+    folder,
+    //resource_type: "video",
+  };
+
+  const signature = cloudinary.utils.api_sign_request(
+    paramsToSign,
+    process.env.CLOUDINARY_API_SECRET!
+  );
+
+  return res.json(
+    new ApiResponse(200, {
+      signature,
+      timestamp,
+      api_key: process.env.CLOUDINARY_API_KEY,
+      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+      folder,
+    }, "Signed URL generated")
+  );
+});
+
 
 /**
  * GET ALL VIDEOS
@@ -79,33 +112,33 @@ const getAllVideos = asyncHandler(async (req, res) => {
  * PUBLISH VIDEO
  */
 const publishAVideo = asyncHandler(async (req, res) => {
-  const { title, description } = req.body;
+  const { data, success } = VideoSchema.safeParse(req.body)
 
-  if (!title || !description) {
-    throw new ApiError(400, "Title and description are required");
+  if (!success) {
+    throw new ApiError(400, "Title , description and Video are required");
   }
 
-  const videoLocalPath = req.files?.videoFile?.[0]?.path;
-  const thumbnailLocalPath = req.files?.thumbnail?.[0]?.path;
+  const { title, description, videoUrl, duration } = data
 
-  if (!videoLocalPath || !thumbnailLocalPath) {
+  const thumbnailLocalPath = req.files?.path;
+
+  if (!thumbnailLocalPath) {
     throw new ApiError(400, "Video and thumbnail are required");
   }
 
-  const videoUpload = await uploadOnCloudinary(videoLocalPath);
   const thumbnailUpload = await uploadOnCloudinary(thumbnailLocalPath);
 
-  if (!videoUpload || !thumbnailUpload) {
+  if (!thumbnailUpload) {
     throw new ApiError(500, "Failed to upload files");
   }
 
   const video = await Video.create({
-    videoFile: videoUpload.url,
+    videoFile: videoUrl,
     thumbnail: thumbnailUpload.url,
     owner: req.user,
     title,
     description,
-    duration: videoUpload.duration || "0",
+    duration: duration || "0",
   });
 
   return res
@@ -241,6 +274,7 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
 });
 
 export {
+  getSignedUploadUrl,
   getAllVideos,
   publishAVideo,
   getVideoById,

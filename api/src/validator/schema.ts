@@ -22,3 +22,10 @@ export const PlaylistSchema = z.object({
   name: z.string(),
   description: z.string()
 })
+
+export const VideoSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  videoUrl: z.string(),
+  duration: z.number()
+})
