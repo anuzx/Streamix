@@ -52,15 +52,18 @@ const registerUser = asyncHandler(async (req, res) => {
   const avatarLocalPath = (req.files as any)?.avatar?.[0]?.path;
   const coverImageLocalPath = (req.files as any)?.coverImage?.[0]?.path;
 
-  // upload only if provided
-  const avatar = avatarLocalPath
-    ? await uploadOnCloudinary(avatarLocalPath)
-    : null;
+  const [avatarResult, coverImageResult] = await Promise.allSettled([
+    avatarLocalPath ? uploadOnCloudinary(avatarLocalPath) : Promise.resolve(null),
+    coverImageLocalPath ? uploadOnCloudinary(coverImageLocalPath) : Promise.resolve(null),
+  ]);
 
-  const coverImage = coverImageLocalPath
-    ? await uploadOnCloudinary(coverImageLocalPath)
-    : null;
+  const avatar = avatarResult.status === "fulfilled" ? avatarResult.value : null;
+  const coverImage = coverImageResult.status === "fulfilled" ? coverImageResult.value : null;
 
+
+  console.log("files →", req.files);
+  console.log("coverPath →", coverImageLocalPath);
+  console.log("coverUpload →", coverImage);
 
   const user = await User.create({
     fullName,

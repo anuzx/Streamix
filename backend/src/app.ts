@@ -35,6 +35,7 @@ import commentRouter from "./routes/comment.routes.js";
 import likeRouter from "./routes/like.routes.js";
 import playlistRouter from "./routes/playlist.routes.js";
 import dashboardRouter from "./routes/dashboard.routes.js";
+import { globalErrorHandler } from "./middlewares/globalErrorHandler.middleware.js";
 
 //ROUTES DECLARATION:
 
@@ -49,5 +50,13 @@ app.use("/api/v1/comments", commentRouter);
 app.use("/api/v1/likes", likeRouter);
 app.use("/api/v1/playlist", playlistRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
+
+app.use((req, _res, next) => {
+  const error = new Error(`Route ${req.originalUrl} not found`);
+  (error as any).statusCode = 404;
+  next(error);
+})
+
+app.use(globalErrorHandler)
 
 export { app };
