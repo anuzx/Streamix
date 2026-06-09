@@ -28,3 +28,17 @@ export async function getChannelVideos(channelId: string) {
   });
   return data.data;
 }
+
+export async function getVideoById(videoId: string) {
+  const { data } = await axios.get(`${BACKEND_URL}/videos/${videoId}`, {
+    withCredentials: true,
+  });
+  return data.data;
+}
+
+export async function getAllVideos() {
+  const { data } = await axios.get(`${BACKEND_URL}/videos`, {
+    withCredentials: true,
+  });
+  return data.data.docs;
+}

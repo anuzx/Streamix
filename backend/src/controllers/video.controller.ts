@@ -65,8 +65,8 @@ const getAllVideos = asyncHandler(async (req, res) => {
   }
 
   // filter by user
-  if (userId && isValidObjectId(User)) {
-    matchStage.owner = new mongoose.Types.ObjectId(userId);
+  if (userId && isValidObjectId(userId)) {
+    matchStage.owner = new mongoose.Types.ObjectId(userId as string);
   }
 
   const sortOrder = sortType === "asc" ? 1 : -1;
@@ -115,15 +115,15 @@ const publishAVideo = asyncHandler(async (req, res) => {
   const { data, success } = VideoSchema.safeParse(req.body)
 
   if (!success) {
-    throw new ApiError(400, "Title , description and Video are required");
+    throw new ApiError(400, "Title , Description and Video are required");
   }
 
   const { title, description, videoUrl, duration } = data
 
-  const thumbnailLocalPath = req.files?.path;
+  const thumbnailLocalPath = (req.files as any)?.thumbnail?.[0]?.path;
 
   if (!thumbnailLocalPath) {
-    throw new ApiError(400, "Video and thumbnail are required");
+    throw new ApiError(400, "Thumbnail is required");
   }
 
   const thumbnailUpload = await uploadOnCloudinary(thumbnailLocalPath);

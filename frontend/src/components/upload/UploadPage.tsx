@@ -2,10 +2,11 @@ import { useRef, useState } from "react";
 import { X, ImageIcon, Video, Upload } from "lucide-react";
 import { useVideoUpload } from "../../hooks/useVideoUpload";
 import UploadProgressBar from "../../components/upload/UploadPrograssBar";
-import { useNavigate } from "react-router-dom";
+import { useUploadStore } from "../../store/uploadStore";
 
 export default function UploadPage() {
-  const navigate = useNavigate()
+  const { closeUpload } = useUploadStore();
+
   const { upload, progress, status, error } = useVideoUpload();
 
   const [title, setTitle] = useState("");
@@ -42,7 +43,7 @@ export default function UploadPage() {
           </h2>
 
           <button className="p-2 rounded-full hover:bg-zinc-800"
-            onClick={() => navigate("/")}>
+            onClick={closeUpload}>
             <X size={20} className="text-zinc-400" />
           </button>
         </div>
@@ -196,6 +197,7 @@ export default function UploadPage() {
             <button
               type="button"
               className="px-5 py-2 rounded-full bg-zinc-800 hover:bg-zinc-700 text-white"
+              onClick={closeUpload}
             >
               Cancel
             </button>
