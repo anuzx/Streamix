@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import Home from './screens/Home'
 import { Video } from './screens/Video'
-import UploadPage from './screens/UploadPage'
+import Channel from "./screens/Channel.tsx"
 
 function App() {
 
@@ -11,7 +11,8 @@ function App() {
         <Routes>
           <Route path='/' element={<Home />} />
           <Route path='/watch' element={<Video />} />
-          <Route path='/upload' element={<UploadPage />} />
+          <Route path="/upload" element={<Home />} />
+          <Route path='/channel/:username' element={<Channel />} />
         </Routes>
       </BrowserRouter>
 

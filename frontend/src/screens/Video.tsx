@@ -1,4 +1,4 @@
-export const Video = (props: {}) => {
+export const Video = () => {
   return (
     <div>
 

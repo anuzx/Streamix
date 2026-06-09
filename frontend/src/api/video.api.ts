@@ -15,9 +15,16 @@ export async function publishVideo(payload: {
   body.append("duration", String(payload.duration));
   body.append("thumbnail", payload.thumbnail);
 
-  const { data } = await axios.post(`${BACKEND_URL}/api/v1/videos`, body, {
+  const { data } = await axios.post(`${BACKEND_URL}/videos`, body, {
     withCredentials: true,
   });
 
   return data;
+}
+
+export async function getChannelVideos(channelId: string) {
+  const { data } = await axios.get(`${BACKEND_URL}/dashboard/videos/${channelId}`, {
+    withCredentials: true,
+  });
+  return data.data;
 }
