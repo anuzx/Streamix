@@ -1,5 +1,5 @@
 {
-  "name": "youtube-backend",
+  "name": "backend",
   "version": "1.0.0",
   "description": "backend of youtube in express",
   "main": "index.js",
@@ -9,17 +9,19 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/anuzx/youtube-backend.git"
+    "url": "git+https://github.com/anuzx/Streamix.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/anuzx/youtube-backend/issues"
+    "url": "https://github.com/anuzx/Streamix/issues"
   },
-  "homepage": "https://github.com/anuzx/youtube-backend#readme",
+  "homepage": "https://github.com/anuzx/Streamix#readme",
   "dependencies": {
+    "shared": "*",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.78.0",
     "cloudinary": "^2.8.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
@@ -29,6 +31,7 @@
     "mongoose": "^8.19.2",
     "mongoose-aggregate-paginate-v2": "^1.1.4",
     "multer": "^2.0.2",
+    "redis": "^6.0.0",
     "typescript": "^6.0.2",
     "zod": "^4.3.6"
   },

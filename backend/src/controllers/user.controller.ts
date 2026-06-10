@@ -61,10 +61,6 @@ const registerUser = asyncHandler(async (req, res) => {
   const coverImage = coverImageResult.status === "fulfilled" ? coverImageResult.value : null;
 
 
-  console.log("files →", req.files);
-  console.log("coverPath →", coverImageLocalPath);
-  console.log("coverUpload →", coverImage);
-
   const user = await User.create({
     fullName,
     avatar: avatar?.url || "",

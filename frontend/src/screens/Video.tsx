@@ -1,4 +1,3 @@
-// src/screens/Video.tsx
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import Navbar from "../components/Navbar";

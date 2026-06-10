@@ -1,0 +1,13 @@
+{
+  "name": "Streamix",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend",
+    "transcoder",
+    "shared"
+  ],
+  "scripts": {
+    "api": "bun run ./backend/src/index.ts"
+  }
+}

@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 import { app } from "./app.js";
-import connectDB from "./db/index.js";
+import { connectDB } from "shared";
 
 connectDB() //it is an async method , and whenever async method is completed a promise is returned
   .then(() => {
