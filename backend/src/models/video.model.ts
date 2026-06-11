@@ -34,6 +34,17 @@ const videoSchema = new Schema(
       type: Boolean,
       default: true,
     },
+    isTranscoded: {
+      type: Boolean,
+      default: false,
+    },
+    hlsUrl: {
+      type: String,
+      default: null,
+    },
+    cloudinaryPublicId: {
+      type: String
+    }
   },
 
   { timestamps: true }

@@ -1,10 +1,6 @@
-import "dotenv/config";
 import { Worker } from "bullmq";
-import fs from "fs";
-import path from "path";
-import { transcodeToHLS } from "./processor.js";
-import { uploadHLSToCloudinary, deleteOriginalFromCloudinary } from "./uploader.js";
 import { connectDB, redisConnection } from "shared";
+import { cloudinary } from "shared";
 import { Video } from "../backend/src/models/video.model.js";
 
 await connectDB();
@@ -13,41 +9,58 @@ console.log("Transcoder connected to MongoDB");
 const worker = new Worker(
   "video-transcoding",
   async (job) => {
-    const { videoId, publicId, originalUrl } = job.data;
-    const tmpDir = path.join("/tmp", videoId);
+    const { videoId, publicId } = job.data;
+    console.log(`Polling HLS status for video: ${videoId}, publicId: ${publicId}`);
 
-    console.log(`Processing job for video: ${videoId}`);
+    await job.updateProgress(10);
 
-    try {
-      await job.updateProgress(10);
-      await transcodeToHLS(originalUrl, tmpDir);
+    let hlsUrl: string | null = null;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 36; // 6 minutes max (some videos take longer)
 
-      await job.updateProgress(70);
-      const masterUrl = await uploadHLSToCloudinary(tmpDir, videoId);
+    while (!hlsUrl && attempts < MAX_ATTEMPTS) {
+      attempts++;
+      try {
+        const resource = await cloudinary.api.resource(publicId, {
+          resource_type: "video",
+          eager: true,           // tells the API to include eager[] in response
+        });
 
-      await job.updateProgress(90);
-      await Video.findByIdAndUpdate(videoId, {
-        hlsUrl: masterUrl,
-        isTranscoded: true,
-      });
+        console.log(`Attempt ${attempts} — eager array:`, JSON.stringify(resource.eager));
 
-      await deleteOriginalFromCloudinary(publicId);
+        // eager[] is populated only after the job completes.
+        // The correct check is secure_url ending in .m3u8, not e.format
+        const eagerEntry = resource.eager?.find(
+          (e: any) => e.secure_url?.endsWith(".m3u8")
+        );
 
-      fs.rmSync(tmpDir, { recursive: true, force: true });
-
-      await job.updateProgress(100);
-      console.log(`Done: ${videoId} → ${masterUrl}`);
-    } catch (err) {
-      if (fs.existsSync(tmpDir)) {
-        fs.rmSync(tmpDir, { recursive: true, force: true });
+        if (eagerEntry?.secure_url) {
+          hlsUrl = eagerEntry.secure_url;
+          console.log(`HLS ready for ${videoId}: ${hlsUrl}`);
+        } else {
+          console.log(`Attempt ${attempts}: HLS not ready yet for ${videoId}, waiting 10s...`);
+          await new Promise(r => setTimeout(r, 10_000));
+        }
+      } catch (err) {
+        console.error(`Cloudinary API error on attempt ${attempts}:`, err);
+        await new Promise(r => setTimeout(r, 10_000));
       }
-      throw err;
+
+      await job.updateProgress(10 + Math.floor((attempts / MAX_ATTEMPTS) * 85));
     }
+
+    if (!hlsUrl) throw new Error(`HLS transcoding timed out for ${videoId}`);
+
+    // Use the URL Cloudinary gave us, not our own reconstruction
+    await Video.findByIdAndUpdate(videoId, {
+      hlsUrl,
+      isTranscoded: true,
+    });
+
+    await job.updateProgress(100);
+    console.log(`Done: ${videoId} → ${hlsUrl}`);
   },
-  {
-    connection: redisConnection,
-    concurrency: 2,
-  }
+  { connection: redisConnection, concurrency: 3 }
 );
 
 worker.on("completed", (job) => console.log(`Job ${job.id} completed`));

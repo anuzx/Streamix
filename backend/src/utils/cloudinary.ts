@@ -1,18 +1,9 @@
 //our goal :
 //file will come from file sys (files are uploaded on server) then we will keep it on cloudinary and del it from our server
 
-import { v2 as cloudinary } from "cloudinary";
+
 import fs from "fs"; //file sys (by default comes with node.js)
-
-
-
-// Configuration
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
-  api_key: process.env.CLOUDINARY_API_KEY!,
-  api_secret: process.env.CLOUDINARY_API_SECRET!,
-});
-
+import { cloudinary } from "shared";
 
 const uploadOnCloudinary = async (localFilePath: string) => {
   try {

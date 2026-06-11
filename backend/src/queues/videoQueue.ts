@@ -1,8 +1,8 @@
 import { Queue } from "bullmq";
+import { redisConnection } from "shared";
 
-export const connection = {
-  host: 'localhost',
-  port: 6379,
-}
 
-export const videoQueue = new Queue("video-transcoding", { connection });
+
+export const videoQueue = new Queue("video-transcoding", {
+  connection: redisConnection
+});

@@ -18,7 +18,6 @@ export async function publishVideo(payload: {
   const { data } = await axios.post(`${BACKEND_URL}/videos`, body, {
     withCredentials: true,
   });
-
   return data;
 }
 
@@ -41,4 +40,15 @@ export async function getAllVideos() {
     withCredentials: true,
   });
   return data.data.docs;
+}
+
+export async function getVideoStatus(videoId: string): Promise<{
+  isTranscoded: boolean;
+  hlsUrl: string | null;
+  videoFile: string;
+}> {
+  const { data } = await axios.get(`${BACKEND_URL}/videos/${videoId}/status`, {
+    withCredentials: true,
+  });
+  return data.data;
 }

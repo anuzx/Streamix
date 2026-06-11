@@ -7,6 +7,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { cloudinary } from "../utils/cloudinary.js";
 import { VideoSchema } from "../validator/schema.js";
+import { videoQueue } from "../queues/videoQueue.js";
 
 
 /**
@@ -14,12 +15,15 @@ import { VideoSchema } from "../validator/schema.js";
  */
 const getSignedUploadUrl = asyncHandler(async (_req, res) => {
   const timestamp = Math.round(Date.now() / 1000);
-  const folder = "videos"
+  const folder = "videos";
+
+  const eagerTransformation = "sp_hd/m3u8"; // Cloudinary's built-in HLS profile
 
   const paramsToSign = {
     timestamp,
     folder,
-    //resource_type: "video",
+    eager: eagerTransformation,
+    eager_async: "true",
   };
 
   const signature = cloudinary.utils.api_sign_request(
@@ -34,6 +38,8 @@ const getSignedUploadUrl = asyncHandler(async (_req, res) => {
       api_key: process.env.CLOUDINARY_API_KEY,
       cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
       folder,
+      eager: eagerTransformation,
+      eager_async: "true",
     }, "Signed URL generated")
   );
 });
@@ -112,25 +118,21 @@ const getAllVideos = asyncHandler(async (req, res) => {
  * PUBLISH VIDEO
  */
 const publishAVideo = asyncHandler(async (req, res) => {
-  const { data, success } = VideoSchema.safeParse(req.body)
+  const { data, success } = VideoSchema.safeParse(req.body);
+  if (!success) throw new ApiError(400, "Title, Description and Video are required");
 
-  if (!success) {
-    throw new ApiError(400, "Title , Description and Video are required");
-  }
-
-  const { title, description, videoUrl, duration } = data
-
+  const { title, description, videoUrl, duration } = data;
   const thumbnailLocalPath = (req.files as any)?.thumbnail?.[0]?.path;
-
-  if (!thumbnailLocalPath) {
-    throw new ApiError(400, "Thumbnail is required");
-  }
+  if (!thumbnailLocalPath) throw new ApiError(400, "Thumbnail is required");
 
   const thumbnailUpload = await uploadOnCloudinary(thumbnailLocalPath);
+  if (!thumbnailUpload) throw new ApiError(500, "Failed to upload Thumbnail");
 
-  if (!thumbnailUpload) {
-    throw new ApiError(500, "Failed to upload Thumbnail");
-  }
+  // Extract publicId from the video URL
+  const urlParts = videoUrl.split("/");
+  const uploadIndex = urlParts.indexOf("upload");
+  const publicIdWithExt = urlParts.slice(uploadIndex + 2).join("/");
+  const publicId = publicIdWithExt.replace(/\.[^/.]+$/, ""); // e.g. "videos/abc123"
 
   const video = await Video.create({
     videoFile: videoUrl,
@@ -139,13 +141,20 @@ const publishAVideo = asyncHandler(async (req, res) => {
     title,
     description,
     duration: duration || "0",
+    isTranscoded: false,
+    cloudinaryPublicId: publicId,
   });
 
-  return res
-    .status(201)
-    .json(new ApiResponse(201, video, "Video published successfully"));
-});
+  // Enqueue a job that polls Cloudinary until HLS is ready
+  await videoQueue.add("transcode", {
+    videoId: video._id.toString(),
+    publicId,
+  });
 
+  return res.status(201).json(
+    new ApiResponse(201, video, "Video published, HLS transcoding started")
+  );
+});
 
 /**
  * GET VIDEO BY ID
@@ -273,6 +282,24 @@ const togglePublishStatus = asyncHandler(async (req, res) => {
   );
 });
 
+
+const getVideoStatus = asyncHandler(async (req, res) => {
+  const { videoId } = req.params;
+
+  if (!isValidObjectId(videoId)) {
+    throw new ApiError(400, "Invalid video ID");
+  }
+
+  const video = await Video.findById(videoId).select("isTranscoded hlsUrl videoFile");
+
+  if (!video) {
+    throw new ApiError(404, "Video not found");
+  }
+
+  return res.json(new ApiResponse(200, video, "Video status fetched"));
+});
+
+
 export {
   getSignedUploadUrl,
   getAllVideos,
@@ -281,4 +308,5 @@ export {
   updateVideo,
   deleteVideo,
   togglePublishStatus,
+  getVideoStatus
 };

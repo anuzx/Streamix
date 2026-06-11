@@ -36,7 +36,6 @@ import likeRouter from "./routes/like.routes.js";
 import playlistRouter from "./routes/playlist.routes.js";
 import dashboardRouter from "./routes/dashboard.routes.js";
 import { globalErrorHandler } from "./middlewares/globalErrorHandler.middleware.js";
-import webhookRouter from "./weebhooks/cloudinary.weebhook.js";
 //ROUTES DECLARATION:
 
 //app.get will not be used here becuz we have made router seperatly
@@ -50,7 +49,6 @@ app.use("/api/v1/comments", commentRouter);
 app.use("/api/v1/likes", likeRouter);
 app.use("/api/v1/playlist", playlistRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
-app.use("/api/v1/webhooks", webhookRouter);
 
 
 app.use((req, _res, next) => {
