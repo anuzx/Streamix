@@ -32,7 +32,7 @@ const generateAccessAndRefreshTokens = async (userId: mongoose.Types.ObjectId | 
   }
 };
 
-const registerUser = asyncHandler(async (req, res) => {
+const registerUser = asyncHandler(async (req: Request, res: Response) => {
   const parsedData = RegisterSchema.safeParse(req.body);
 
   if (!parsedData.success) {

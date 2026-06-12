@@ -35,11 +35,18 @@ export async function getVideoById(videoId: string) {
   return data.data;
 }
 
-export async function getAllVideos() {
-  const { data } = await axios.get(`${BACKEND_URL}/videos`, {
-    withCredentials: true,
-  });
-  return data.data.docs;
+export async function getAllVideos(
+  page = 1,
+  limit = 12
+) {
+  const { data } = await axios.get(
+    `${BACKEND_URL}/videos?page=${page}&limit=${limit}`,
+    {
+      withCredentials: true,
+    }
+  );
+
+  return data.data;
 }
 
 export async function getVideoStatus(videoId: string): Promise<{

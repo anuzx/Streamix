@@ -23,7 +23,7 @@ const videoSchema = new Schema(
       required: true,
     },
     duration: {
-      type: String,//cloudinary url (cloudinary gives info which also contains duration for vids)
+      type: Number,
       required: true,
     },
     views: {

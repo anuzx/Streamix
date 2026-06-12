@@ -27,5 +27,5 @@ export const VideoSchema = z.object({
   title: z.string(),
   description: z.string(),
   videoUrl: z.string(),
-  duration: z.string()
+  duration: z.coerce.number()
 })

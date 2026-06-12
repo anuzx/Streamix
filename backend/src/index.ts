@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 import { app } from "./app.js";
-import { connectDB } from "shared";
+import { connectDB } from "./db/db.js";
 
 connectDB() //it is an async method , and whenever async method is completed a promise is returned
   .then(() => {
@@ -9,7 +9,7 @@ connectDB() //it is an async method , and whenever async method is completed a p
       console.log(`Server is running at: ${process.env.PORT || 8000}`);
     });
 
-    server.on("error", (error) => {
+    server.on("error", (error: any) => {
       console.error("SERVER START FAILED:", error);
       process.exit(1);
     });

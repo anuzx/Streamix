@@ -1,32 +1,72 @@
-import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import VideoCard from "../components/VideoCard";
-import UploadPage from "../components/upload/UploadPage";
 import { getAllVideos } from "../api/video.api";
 
 export default function Home() {
-  const location = useLocation();
   const [videos, setVideos] = useState<any[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const showUploadModal = location.pathname === "/upload";
+  const observer = useRef<IntersectionObserver | null>(null);
 
-  useEffect(() => {
-    const fetchVideos = async () => {
+  const fetchVideos = useCallback(
+    async (pageNumber: number) => {
       try {
-        const data = await getAllVideos();
-        setVideos(data);
+        if (pageNumber === 1) {
+          setLoading(true);
+        } else {
+          setLoadingMore(true);
+        }
+
+        const response = await getAllVideos(pageNumber, 12);
+
+        setVideos((prev) => [...prev, ...response.docs]);
+
+        setHasMore(response.hasNextPage);
       } catch (error) {
         console.error("Failed to fetch videos:", error);
       } finally {
         setLoading(false);
+        setLoadingMore(false);
       }
-    };
+    },
+    []
+  );
 
-    fetchVideos();
-  }, []);
+  useEffect(() => {
+    fetchVideos(1);
+  }, [fetchVideos]);
+
+  const lastVideoRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (loadingMore) return;
+
+      if (observer.current) {
+        observer.current.disconnect();
+      }
+
+      observer.current = new IntersectionObserver((entries) => {
+        if (
+          entries[0].isIntersecting &&
+          hasMore
+        ) {
+          const nextPage = page + 1;
+
+          setPage(nextPage);
+          fetchVideos(nextPage);
+        }
+      });
+
+      if (node) {
+        observer.current.observe(node);
+      }
+    },
+    [hasMore, loadingMore, page, fetchVideos]
+  );
 
   return (
     <div className="bg-black min-h-screen">
@@ -53,18 +93,42 @@ export default function Home() {
         ) : videos.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-96 text-zinc-500">
             <p className="text-lg">No videos found</p>
-            <p className="text-sm mt-1">Be the first to upload one!</p>
+            <p className="text-sm mt-1">
+              Be the first to upload one!
+            </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mt-6">
-            {videos.map((video: any) => (
-              <VideoCard key={video._id} {...video} />
-            ))}
-          </div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mt-6">
+              {videos.map((video, index) => {
+                if (index === videos.length - 1) {
+                  return (
+                    <div
+                      key={video._id}
+                      ref={lastVideoRef}
+                    >
+                      <VideoCard {...video} />
+                    </div>
+                  );
+                }
+
+                return (
+                  <VideoCard
+                    key={video._id}
+                    {...video}
+                  />
+                );
+              })}
+            </div>
+
+            {loadingMore && (
+              <div className="flex justify-center py-8 text-zinc-400">
+                Loading more videos...
+              </div>
+            )}
+          </>
         )}
       </main>
-
-      {showUploadModal && <UploadPage />}
     </div>
   );
 }

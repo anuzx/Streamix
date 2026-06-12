@@ -1,4 +1,4 @@
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 
 import cookieParser from "cookie-parser"; //use to access the client cookie and set it ,do CRUD operation
 
@@ -51,7 +51,7 @@ app.use("/api/v1/playlist", playlistRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
 
 
-app.use((req, _res, next) => {
+app.use((req: Request, _res: Response, next: NextFunction) => {
   const error = new Error(`Route ${req.originalUrl} not found`);
   (error as any).statusCode = 404;
   next(error);

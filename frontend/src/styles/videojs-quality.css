@@ -1,0 +1,23 @@
+.vjs-quality-menu .vjs-icon-placeholder::before {
+  content: "⚙";
+  font-size: 1.5em;
+  line-height: 2.2;
+}
+
+.vjs-quality-menu.vjs-menu-button {
+  width: 3.4em;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vjs-quality-menu .vjs-menu-item {
+  text-transform: none;
+  font-size: 13px;
+  font-family: inherit;
+  padding: 2px 4px;
+  text-align: center;
+  color: #ddd;
+  white-space: nowrap;
+}

@@ -2,12 +2,12 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useEffect, useRef, useState } from "react";
 import videojs from "video.js";
 import "video.js/dist/video-js.css";
-import "videojs-contrib-quality-levels"; // registers player.qualityLevels()
+import "videojs-contrib-quality-levels";
 import Navbar from "../components/Navbar";
 import VideoCard from "../components/VideoCard";
 import { getVideoById, getAllVideos, getVideoStatus } from "../api/video.api";
 import { ThumbsUp, ThumbsDown, Share2, Flag } from "lucide-react";
-
+import "../components/VideoJsQualityMenu";
 type VideoData = {
   _id: string;
   title: string;
@@ -46,135 +46,6 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(days / 365)} years ago`;
 }
 
-// ─── Quality Selector ──────────────────────────────────────────────────────────
-// Reads actual rendition heights from the HLS manifest instead of hardcoding
-// index positions. Works with Cloudinary's sp_hd profile (360/480/720/1080p).
-
-function setupQualitySelector(player: any) {
-  const Button = videojs.getComponent("Button");
-
-  // Guard: only register once per page lifecycle
-  if (!videojs.getComponent("QualityButton")) {
-    class QualityButton extends Button {
-      private menuEl: HTMLElement | null = null;
-      private labelEl: HTMLElement | null = null;
-
-      buildCSSClass() {
-        return `vjs-quality-selector vjs-menu-button ${super.buildCSSClass()}`;
-      }
-
-      createEl() {
-        const el = super.createEl("button", {
-          className: "vjs-quality-selector vjs-control vjs-button",
-        }) as HTMLElement;
-
-        const label = document.createElement("span");
-        label.className = "vjs-icon-placeholder";
-        label.textContent = "Auto";
-        el.appendChild(label);
-        this.labelEl = label;
-        return el;
-      }
-
-      setLabel(text: string) {
-        if (this.labelEl) this.labelEl.textContent = text;
-      }
-
-      closeMenu() {
-        if (this.menuEl) {
-          this.menuEl.remove();
-          this.menuEl = null;
-        }
-      }
-
-      handleClick() {
-        if (this.menuEl) {
-          this.closeMenu();
-          return;
-        }
-
-        const qualityLevels = (this.player() as any).qualityLevels?.();
-        if (!qualityLevels || qualityLevels.length === 0) return;
-
-        const menu = document.createElement("div");
-        menu.className =
-          "vjs-quality-menu absolute bottom-10 right-0 bg-black/90 rounded-lg overflow-hidden z-50 min-w-[110px]";
-
-        // Build items: Auto + one entry per unique height (sorted highest first)
-        const heights: number[] = [];
-        for (let i = 0; i < qualityLevels.length; i++) {
-          const h = qualityLevels[i].height;
-          if (h && !heights.includes(h)) heights.push(h);
-        }
-        heights.sort((a, b) => b - a); // descending
-
-        const items: { label: string; height: number | null }[] = [
-          { label: "Auto", height: null },
-          ...heights.map((h) => ({ label: `${h}p`, height: h })),
-        ];
-
-        items.forEach(({ label, height }) => {
-          const item = document.createElement("div");
-          item.className =
-            "px-4 py-2 text-white text-sm cursor-pointer hover:bg-zinc-700 transition-colors";
-          item.textContent = label;
-          item.addEventListener("click", () => {
-            for (let i = 0; i < qualityLevels.length; i++) {
-              // null height = Auto (enable all); otherwise enable only matching height
-              qualityLevels[i].enabled =
-                height === null || qualityLevels[i].height === height;
-            }
-            this.setLabel(label);
-            this.closeMenu();
-          });
-          menu.appendChild(item);
-        });
-
-        // Close when clicking outside
-        const onOutside = (e: MouseEvent) => {
-          if (!this.el().contains(e.target as Node)) {
-            this.closeMenu();
-            document.removeEventListener("click", onOutside);
-          }
-        };
-        // Defer so this click doesn't immediately close it
-        setTimeout(() => document.addEventListener("click", onOutside), 0);
-
-        this.el().appendChild(menu);
-        this.menuEl = menu;
-      }
-    }
-
-    videojs.registerComponent("QualityButton", QualityButton);
-  }
-
-  player.ready(() => {
-    const qualityLevels = player.qualityLevels?.();
-    if (!qualityLevels) return;
-
-    // Wait until levels are populated from the manifest before adding the button
-    const addButton = () => {
-      if (qualityLevels.length > 1) {
-        player.getChild("controlBar")?.addChild("QualityButton", {}, 15);
-      }
-    };
-
-    if (qualityLevels.length > 1) {
-      addButton();
-    } else {
-      qualityLevels.on("addqualitylevel", () => {
-        // Only add the button once, after at least 2 levels are known
-        if (qualityLevels.length > 1) {
-          qualityLevels.off("addqualitylevel");
-          addButton();
-        }
-      });
-    }
-  });
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-
 export function Video() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -191,10 +62,46 @@ export function Video() {
   const [descExpanded, setDescExpanded] = useState(false);
   const [transcoding, setTranscoding] = useState(false);
 
-  // Initialise / destroy Video.js when video data is ready
+  // fetch video + suggestions
+  useEffect(() => {
+    if (!videoId) return;
+
+    async function fetchData() {
+      try {
+        setLoading(true);
+        setError(null);
+        setDescExpanded(false);
+
+        const [videoData, videosResponse] = await Promise.all([
+          getVideoById(videoId!),
+          getAllVideos(),
+        ]);
+
+        const allVideos = Array.isArray(videosResponse?.docs)
+          ? videosResponse.docs
+          : [];
+
+        setVideo(videoData);
+
+        setSuggestions(
+          allVideos.filter(
+            (v: SuggestionVideo) => v._id !== videoId
+          )
+        );
+      } catch (err: any) {
+        setError(err.message ?? "Failed to load video");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchData();
+  }, [videoId]);
+
   useEffect(() => {
     if (!video || !containerRef.current) return;
 
+    // dispose previous player
     if (playerRef.current) {
       playerRef.current.dispose();
       playerRef.current = null;
@@ -205,6 +112,7 @@ export function Video() {
       ? { src: video.hlsUrl!, type: "application/x-mpegURL" }
       : { src: video.videoFile, type: "video/mp4" };
 
+    // create fresh video element
     containerRef.current.innerHTML = "";
     const videoEl = document.createElement("video");
     videoEl.className = "video-js vjs-big-play-centered vjs-fluid";
@@ -212,13 +120,11 @@ export function Video() {
 
     const player = videojs(videoEl, {
       controls: true,
-      autoplay: true,
+      autoplay: "muted",
       preload: "auto",
       html5: {
         vhs: {
-          // Required: forces VHS (not native HLS) so qualityLevels plugin works
-          // in all browsers including Safari
-          overrideNative: true,
+          overrideNative: true,        // required for quality switching in all browsers
           enableLowInitialPlaylist: true,
         },
         nativeVideoTracks: false,
@@ -230,20 +136,33 @@ export function Video() {
 
     playerRef.current = player;
 
-    // Attach quality selector only for HLS — it needs the VHS quality level API
+    // Attach quality selector only for HLS.
+    // Add the button unconditionally inside player.ready() —
+    // QualityMenuButton itself listens for addqualitylevel and calls
+    // update() to rebuild the menu as levels arrive from the manifest.
     if (isHLS) {
-      setupQualitySelector(player);
+      player.ready(() => {
+        const controlBar = player.getChild("ControlBar");
+        if (controlBar && !controlBar.getChild("QualityMenuButton")) {
+          controlBar.addChild(
+            "QualityMenuButton",
+            {},
+            controlBar.children().length - 1   // just before the fullscreen button
+          );
+        }
+      });
     }
 
     return () => {
+
       playerRef.current?.dispose();
       playerRef.current = null;
     };
   }, [video]);
 
-  // Poll for transcoding completion
+  // poll for HLS completion if not yet transcoded
   useEffect(() => {
-    if (!video || video.isTranscoded) return;
+    if (!video?._id || video.isTranscoded) return;
 
     setTranscoding(true);
 
@@ -252,48 +171,24 @@ export function Video() {
         const status = await getVideoStatus(video._id);
         if (status.isTranscoded && status.hlsUrl) {
           clearInterval(pollRef.current!);
+          pollRef.current = null;
           setTranscoding(false);
           setVideo((prev) =>
             prev ? { ...prev, isTranscoded: true, hlsUrl: status.hlsUrl } : prev
           );
         }
       } catch {
-        // silently ignore transient poll errors
+        // ignore transient errors, keep polling
       }
     }, 5000);
 
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
     };
   }, [video?._id, video?.isTranscoded]);
-
-  // Fetch video + suggestions
-  useEffect(() => {
-    if (!videoId) return;
-
-    async function fetchData() {
-      try {
-        setLoading(true);
-        setDescExpanded(false);
-
-        const [videoData, allVideos] = await Promise.all([
-          getVideoById(videoId!),
-          getAllVideos(),
-        ]);
-
-        setVideo(videoData);
-        setSuggestions(
-          (allVideos ?? []).filter((v: SuggestionVideo) => v._id !== videoId)
-        );
-      } catch (err: any) {
-        setError(err.message ?? "Failed to load video");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, [videoId]);
 
   if (!videoId) {
     return (
@@ -318,28 +213,30 @@ export function Video() {
           </div>
         ) : (
           <div className="flex flex-col lg:flex-row gap-6 py-6">
-            {/* LEFT */}
+
+            {/* LEFT — player + info */}
             <div className="flex-1 min-w-0">
 
-              {/* Transcoding banner */}
+              {/* transcoding banner */}
               {transcoding && (
                 <div className="mb-3 flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 text-sm px-4 py-2.5 rounded-xl">
                   <div className="w-3.5 h-3.5 border-2 border-yellow-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                  Video is being transcoded to HLS — quality switching will be available shortly.
+                  Transcoding to HLS — quality switching available shortly. Playing original in the meantime.
                 </div>
               )}
+              {/* player */}
+              <div className="relative w-full aspect-video bg-zinc-950 rounded-xl overflow-hidden">
 
-              {/* Player */}
-              <div className="w-full aspect-video bg-zinc-950 rounded-xl overflow-hidden relative">
                 <div ref={containerRef} className="w-full h-full" />
+
               </div>
 
-              {/* Title */}
+              {/* title */}
               <h1 className="text-white text-xl font-semibold mt-4 leading-snug">
                 {video?.title}
               </h1>
 
-              {/* Views + actions */}
+              {/* views + actions */}
               <div className="flex items-center justify-between mt-3 flex-wrap gap-3">
                 <p className="text-zinc-400 text-sm">
                   {video?.views} views · {video && timeAgo(video.createdAt)}
@@ -355,14 +252,13 @@ export function Video() {
                       key={label}
                       className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-white text-sm px-4 py-2 rounded-full transition-colors"
                     >
-                      {icon}
-                      {label}
+                      {icon}{label}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Channel */}
+              {/* channel */}
               <div className="flex items-center justify-between mt-4 p-4 bg-zinc-900 rounded-xl">
                 <div
                   className="flex items-center gap-3 cursor-pointer"
@@ -382,13 +278,10 @@ export function Video() {
                 </button>
               </div>
 
-              {/* Description */}
+              {/* description */}
               {video?.description && (
                 <div className="mt-4 p-4 bg-zinc-900 rounded-xl">
-                  <p
-                    className={`text-zinc-300 text-sm whitespace-pre-wrap leading-relaxed ${!descExpanded ? "line-clamp-3" : ""
-                      }`}
-                  >
+                  <p className={`text-zinc-300 text-sm whitespace-pre-wrap leading-relaxed ${!descExpanded ? "line-clamp-3" : ""}`}>
                     {video.description}
                   </p>
                   <button
@@ -424,9 +317,11 @@ export function Video() {
                 )}
               </div>
             </div>
-          </div>
-        )}
-      </main>
-    </div>
+
+          </div >
+        )
+        }
+      </main >
+    </div >
   );
 }
