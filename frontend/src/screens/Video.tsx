@@ -5,9 +5,13 @@ import "video.js/dist/video-js.css";
 import "videojs-contrib-quality-levels";
 import Navbar from "../components/Navbar";
 import VideoCard from "../components/VideoCard";
+import CommentsSection from "../components/Commentssection.tsx";
 import { getVideoById, getAllVideos, getVideoStatus } from "../api/video.api";
 import { ThumbsUp, ThumbsDown, Share2, Flag } from "lucide-react";
 import "../components/VideoJsQualityMenu";
+
+// ── types ─────────────────────────────────────────────────────────────────────
+
 type VideoData = {
   _id: string;
   title: string;
@@ -36,6 +40,8 @@ type SuggestionVideo = {
   owner: { username: string; avatar: string };
 };
 
+// ── helpers ───────────────────────────────────────────────────────────────────
+
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / 86400000);
@@ -45,6 +51,8 @@ function timeAgo(dateStr: string) {
   if (days < 365) return `${Math.floor(days / 30)} months ago`;
   return `${Math.floor(days / 365)} years ago`;
 }
+
+// ── component ─────────────────────────────────────────────────────────────────
 
 export function Video() {
   const [searchParams] = useSearchParams();
@@ -82,12 +90,7 @@ export function Video() {
           : [];
 
         setVideo(videoData);
-
-        setSuggestions(
-          allVideos.filter(
-            (v: SuggestionVideo) => v._id !== videoId
-          )
-        );
+        setSuggestions(allVideos.filter((v: SuggestionVideo) => v._id !== videoId));
       } catch (err: any) {
         setError(err.message ?? "Failed to load video");
       } finally {
@@ -98,10 +101,10 @@ export function Video() {
     fetchData();
   }, [videoId]);
 
+  // setup / teardown video.js player
   useEffect(() => {
     if (!video || !containerRef.current) return;
 
-    // dispose previous player
     if (playerRef.current) {
       playerRef.current.dispose();
       playerRef.current = null;
@@ -112,7 +115,6 @@ export function Video() {
       ? { src: video.hlsUrl!, type: "application/x-mpegURL" }
       : { src: video.videoFile, type: "video/mp4" };
 
-    // create fresh video element
     containerRef.current.innerHTML = "";
     const videoEl = document.createElement("video");
     videoEl.className = "video-js vjs-big-play-centered vjs-fluid";
@@ -124,7 +126,7 @@ export function Video() {
       preload: "auto",
       html5: {
         vhs: {
-          overrideNative: true,        // required for quality switching in all browsers
+          overrideNative: true,
           enableLowInitialPlaylist: true,
         },
         nativeVideoTracks: false,
@@ -136,10 +138,6 @@ export function Video() {
 
     playerRef.current = player;
 
-    // Attach quality selector only for HLS.
-    // Add the button unconditionally inside player.ready() —
-    // QualityMenuButton itself listens for addqualitylevel and calls
-    // update() to rebuild the menu as levels arrive from the manifest.
     if (isHLS) {
       player.ready(() => {
         const controlBar = player.getChild("ControlBar");
@@ -147,20 +145,19 @@ export function Video() {
           controlBar.addChild(
             "QualityMenuButton",
             {},
-            controlBar.children().length - 1   // just before the fullscreen button
+            controlBar.children().length - 1
           );
         }
       });
     }
 
     return () => {
-
       playerRef.current?.dispose();
       playerRef.current = null;
     };
   }, [video]);
 
-  // poll for HLS completion if not yet transcoded
+  // poll for HLS transcoding completion
   useEffect(() => {
     if (!video?._id || video.isTranscoded) return;
 
@@ -214,7 +211,7 @@ export function Video() {
         ) : (
           <div className="flex flex-col lg:flex-row gap-6 py-6">
 
-            {/* LEFT — player + info */}
+            {/* LEFT — player + info + comments */}
             <div className="flex-1 min-w-0">
 
               {/* transcoding banner */}
@@ -224,11 +221,10 @@ export function Video() {
                   Transcoding to HLS — quality switching available shortly. Playing original in the meantime.
                 </div>
               )}
+
               {/* player */}
               <div className="relative w-full aspect-video bg-zinc-950 rounded-xl overflow-hidden">
-
                 <div ref={containerRef} className="w-full h-full" />
-
               </div>
 
               {/* title */}
@@ -292,6 +288,11 @@ export function Video() {
                   </button>
                 </div>
               )}
+
+              {/* comments */}
+              <div className="mt-2 pb-10">
+                <CommentsSection videoId={videoId} />
+              </div>
             </div>
 
             {/* RIGHT — suggestions */}
@@ -318,10 +319,9 @@ export function Video() {
               </div>
             </div>
 
-          </div >
-        )
-        }
-      </main >
-    </div >
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
